@@ -23,8 +23,11 @@
 from openerp.osv import osv, fields
 from sped_contabil import generate_sped_contabil
 from sped_fiscal import generate_sped_fiscal
+from sped_ecd import SpedECD
 
 
+# TODO Esta classe precisa melhorias posteriormente
+# criado apenas pensando na facilidade de executar a geração para testes
 class fiscal_obligation(osv.Model):
     _name = 'fiscal.obligation'
     _description = 'Geracao das obrigacoes fiscais'
@@ -34,7 +37,8 @@ class fiscal_obligation(osv.Model):
         'code': fields.integer('Código'),
         'description': fields.char('Descrição', size=60),
         'generate': fields.boolean('Gerar obrigação'),
-        'executions': fields.one2many('fiscal.obligation.execution', 'fiscal_obligation_id', 'Execuções'),
+        'executions': fields.one2many('fiscal.obligation.execution',
+                                      'fiscal_obligation_id', 'Execuções'),
     }
     _defaults = {'generate': False,
                  'code': lambda obj, cr, uid, context: obj.pool.get('ir.sequence').get(cr, uid, 'fiscal.obligation.messages.order.sequence'),
@@ -44,18 +48,19 @@ class fiscal_obligation(osv.Model):
         ids = self.search(cr, uid, [('generate', '=', True), ])
         obligations = self.browse(cr, uid, ids, context)
         for obligation in obligations:
-            if obligation.description == 'Sped Fiscal':
-                generator = generate_sped_fiscal()
-                generator.generate(cr, uid, obligation.id, context, obligation)
+#             if obligation.description == 'Sped Fiscal':
+#                 generator = generate_sped_fiscal()
+#                 generator.generate(cr, uid, obligation.id, context, obligation)
+# 
+#             elif obligation.description == 'Sped Contabil':
+#                 generator = generate_sped_contabil()
+#                 generator.generate(cr, uid, obligation.id, context, obligation)
 
-            elif obligation.description == 'Sped Contabil':
-                generator = generate_sped_contabil()
+            if obligation.description == u'Escrituração Contábil Digital - ECD':
+                generator = SpedECD()
                 generator.generate(cr, uid, obligation.id, context, obligation)
 
         return True
-
-
-fiscal_obligation()
 
 
 class fiscal_obligation_execution(osv.Model):

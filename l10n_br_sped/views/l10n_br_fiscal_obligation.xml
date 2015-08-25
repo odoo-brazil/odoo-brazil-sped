@@ -16,7 +16,7 @@
 						<field name="code" invisible="True" />
 						<field name="description" placeholder="Descricao" />
 						<field name="generate" />
-						<field name="executions" colspan="8" readonly='1' />
+						<field name="executions" colspan="8" />
 					</group>
 				</form>
 			</field>
@@ -116,6 +116,11 @@
 			<field name='code'>2</field>
 			<field name='description'>Sped Contabil</field>
 			<field name='generate'>False</field>
+		</record>
+		<record model='fiscal.obligation' id="fiscal_obligation_sped_ecd">
+			<field name='code'>3</field>
+			<field name='description'>Escrituração Contábil Digital - ECD</field>
+			<field name='generate'>True</field>
 		</record>
 
 		<record model="ir.sequence.type" id="seq_type_res_supplier">

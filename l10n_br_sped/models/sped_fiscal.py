@@ -21,7 +21,6 @@
 
 
 from datetime import datetime
-from openerp.addons.l10n_br_sped import pysped_efd
 import base64
 
 
@@ -33,7 +32,8 @@ class generate_sped_fiscal():
     def _create_new_execution(
             self, cr, uid, ids=None, context=None, obligation=None):
         pool_execution = obligation.pool.get('fiscal.obligation.execution')
-        new_obj = {'code': 1, 'date_execution_start': datetime.now(), 'date_execution_end': datetime.now(), 'running': True,
+        new_obj = {'code': 1, 'date_execution_start': datetime.now(),
+                   'date_execution_end': datetime.now(), 'running': True,
                    'fiscal_obligation_id': obligation.id}
         generated_id = pool_execution.create(cr, uid, new_obj, context)
         self.execution_id = generated_id
@@ -48,65 +48,52 @@ class generate_sped_fiscal():
         print type(content)
         if not content is None:
             print content.encode('utf-8')
-            result = base64.b64encode(content.encode('utf-8'))            
+            result = base64.b64encode(content.encode('utf-8'))
             pool_execution.write(cr, uid, self.execution_id,
-                                 {'date_execution_end': datetime.now(), 'running': False, 'efd_fiscal_file': result}, context)
+                                 {'date_execution_end': datetime.now(),
+                                  'running': False,
+                                  'efd_fiscal_file': result}, context)
         else:
             pool_execution.write(
                 cr, uid, self.execution_id, {
                     'date_execution_end': datetime.now(), 'running': False}, context)
 
-    def _create_new_message(
-            self, cr, uid, ids=None, context=None, obligation=None, execution_id=None, message=None):
+    def _create_new_message(self, cr, uid, ids=None, context=None, obligation=None,
+                            execution_id=None, message=None):
         pool_message = obligation.pool.get('fiscal.obligation.messages')
         pool_message.create(
-            cr, uid, {
-                'message': message, 'fiscal_obligation_execution_id': execution_id}, context)
+            cr, uid, {'message': message,
+                      'fiscal_obligation_execution_id': execution_id}, context)
 
     def generate(self, cr, uid, ids=None, context=None, obligation=None):
         execution_id = self._create_new_execution(
-            cr,
-            uid,
-            ids,
-            context,
-            obligation)
-        self._create_new_message(
-            cr,
-            uid,
-            ids,
-            context,
-            obligation,
-            execution_id,
-            "Iniciado a gerar o Sped Fiscal")
+            cr, uid, ids, context, obligation)
+        self._create_new_message(cr, uid, ids, context, obligation,
+                                 execution_id, "Iniciado a gerar o Sped Fiscal")
 
         companies = obligation.pool.get('res.company')
-        company_ids = companies.search(
-            cr,
-            uid,
-            [],
-            offset=0,
-            limit=1,
-            context=context)
+        company_ids = companies.search(cr, uid, [],
+                                       offset=0, limit=1, context=context)
         if len(company_ids) > 0:
             company = companies.browse(cr, uid, company_ids[0], context)
 
-            efd = pysped_efd.EFD(
-                COD_FIN='0',
-                # adicionar estes atributos ao objeto fiscal_obligation
-                DT_INI='01042013',
-                DT_FIN='30042013',
-                NOME=company.partner_id.legal_name,
-                CNPJ=company.partner_id.cnpj_cpf,
-                CPF='',
-                UF=company.partner_id.l10n_br_city_id.state_id.code,
-                IE=company.partner_id.inscr_est,
-                COD_MUN=company.partner_id.l10n_br_city_id.ibge_code,
-                IM=company.partner_id.inscr_mun,
-                SUFRAMA=company.partner_id.suframa,
-                IND_PERFIL='',
-                # TODO Adicionar estes dois campos ao objeto company
-                IND_ATIV=''
-            )
+            efd = None  # pysped_efd.EFD(
+#                 COD_FIN='0',
+#                 # adicionar estes atributos ao objeto fiscal_obligation
+#                 DT_INI='01042013',
+#                 DT_FIN='30042013',
+#                 NOME=company.partner_id.legal_name,
+#                 CNPJ=company.partner_id.cnpj_cpf,
+#                 CPF='',
+#                 UF=company.partner_id.l10n_br_city_id.state_id.code,
+#                 IE=company.partner_id.inscr_est,
+#                 COD_MUN=company.partner_id.l10n_br_city_id.ibge_code,
+#                 IM=company.partner_id.inscr_mun,
+#                 SUFRAMA=company.partner_id.suframa,
+#                 IND_PERFIL='',
+#                 # TODO Adicionar estes dois campos ao objeto company
+#                 IND_ATIV=''
+#             )
 
             self.bloco_0(cr, uid, ids, context, obligation, efd, company)
             self.bloco_C(cr, uid, ids, context, obligation, efd)
@@ -120,26 +107,17 @@ class generate_sped_fiscal():
 
             self._set_as_generated(cr, uid, ids, context, obligation, content)
             self._create_new_message(
-                cr,
-                uid,
-                ids,
-                context,
-                obligation,
-                execution_id,
+                cr, uid, ids, context, obligation, execution_id,
                 "Terminado de gerar o Sped Fiscal")
         else:
             self._set_as_generated(cr, uid, ids, context, obligation)
             self._create_new_message(
-                cr,
-                uid,
-                ids,
-                context,
-                obligation,
-                execution_id,
+                cr, uid, ids, context, obligation, execution_id,
                 "Não foi possível encontrar a empresa padrão.")
 
-    def bloco_0(
-            self, cr, uid, ids, context, obligation, efd=None, company=None):
+    def bloco_0(self, cr, uid, ids, context, obligation,
+                efd=None, company=None):
+        pass
         # Abertura do Arquivo Digital e Identificação da entidade 0000 0 1
         # Abertura do Bloco 0 0001 1 1
         # Dados Complementares da entidade 0005 2 1
@@ -162,90 +140,90 @@ class generate_sped_fiscal():
         # Encerramento do Bloco 0 0990
 
         # -------------- REG 0001 ---------------
-        reg0001 = pysped_efd.r0001(IND_MOV='0')
-        efd.add(reg0001)
-
-        #--------------- REG 0005 ---------------
-        reg0005 = pysped_efd.r0005(FANTASIA=company.name, CEP=company.partner_id.zip,
-                                   END=company.partner_id.street, NUM=company.partner_id.number, COMPL=company.partner_id.street2,
-                                   BAIRRO=company.partner_id.district, FONE=company.partner_id.phone, FAX=company.partner_id.fax,
-                                   EMAIL=company.partner_id.email,)
-
-        efd.add(reg0005)
+#         reg0001 = pysped_efd.r0001(IND_MOV='0')
+#         efd.add(reg0001)
+#
+#         #--------------- REG 0005 ---------------
+#         reg0005 = pysped_efd.r0005(FANTASIA=company.name, CEP=company.partner_id.zip,
+#                                    END=company.partner_id.street, NUM=company.partner_id.number, COMPL=company.partner_id.street2,
+#                                    BAIRRO=company.partner_id.district, FONE=company.partner_id.phone, FAX=company.partner_id.fax,
+#                                    EMAIL=company.partner_id.email,)
+#
+#         efd.add(reg0005)
 
         #---------------- REG 0015 --------------
         # TODO Precisa de um cadastro de incrição estadual substituto reg0015
 
         #--------------- REG 0100 ---------------
-        partner_pool = obligation.pool.get('res.partner')        
-        accountant_ids = partner_pool.search(
-            cr, uid, [('company_id', '=', company.id), ('is_accountant', '=', True)], context=context)
-        if len(accountant_ids) > 0:
-            accountant = partner_pool.browse(
-                cr,
-                uid,
-                accountant_ids[0],
-                context)
-
-            reg0100 = pysped_efd.r0100(NOME=accountant.name, CPF=accountant.cnpj_cpf,
-                                       CRC=accountant.inscricao_crc, CNPJ=accountant.cnpj_empresa,
-                                       CEP=accountant.zip, END=accountant.street, NUM=accountant.number,
-                                       COMPL=accountant.street2, BAIRRO=accountant.district, FONE=accountant.phone,
-                                       FAX=accountant.fax, EMAIL=accountant.email, COD_MUN=accountant.l10n_br_city_id.ibge_code)
-
-            efd.add(reg0100)
-        else:
-            self._create_new_message(
-                cr,
-                uid,
-                ids,
-                context,
-                obligation,
-                self.execution_id,
-                "Informações sobre o contador não configuradas.")
+#         partner_pool = obligation.pool.get('res.partner')
+#         accountant_ids = partner_pool.search(
+#             cr, uid, [('company_id', '=', company.id), ('is_accountant', '=', True)], context=context)
+#         if len(accountant_ids) > 0:
+#             accountant = partner_pool.browse(
+#                 cr,
+#                 uid,
+#                 accountant_ids[0],
+#                 context)
+#
+#             reg0100 = pysped_efd.r0100(NOME=accountant.name, CPF=accountant.cnpj_cpf,
+#                                        CRC=accountant.inscricao_crc, CNPJ=accountant.cnpj_empresa,
+#                                        CEP=accountant.zip, END=accountant.street, NUM=accountant.number,
+#                                        COMPL=accountant.street2, BAIRRO=accountant.district, FONE=accountant.phone,
+#                                        FAX=accountant.fax, EMAIL=accountant.email, COD_MUN=accountant.l10n_br_city_id.ibge_code)
+#
+#             efd.add(reg0100)
+#         else:
+#             self._create_new_message(
+#                 cr,
+#                 uid,
+#                 ids,
+#                 context,
+#                 obligation,
+#                 self.execution_id,
+#                 "Informações sobre o contador não configuradas.")
 
         #--------------- REG 0150 ---------------
         # TODO Talvez em vez de pesquisar antes todos os clientes,
         # conforme for gerando os registros de entrada e saida, ir adicionando
         # os clientes automaticamente, ja que o componente ordena os registros.
-        customer_pool = obligation.pool.get('res.partner')
-        customer_ids = customer_pool.search(
-            cr, uid, [
-                ('customer', '=', True)], context=context)
-        customers = customer_pool.browse(cr, uid, customer_ids, context)
-        for customer in customers:
-            reg0150 = pysped_efd.r0150(COD_PART=customer.id, NOME=customer.name, COD_PAIS=customer.country_id.bc_code,
-                                       CNPJ=customer.cnpj_cpf, CPF=customer.cnpj_cpf, IE=customer.inscr_est,
-                                       COD_MUN=customer.l10n_br_city_id.ibge_code, SUFRAMA=customer.suframa,
-                                       END=customer.street, NUM=customer.number, COMPL=customer.street2, BAIRRO=customer.district)
-
-            efd.add(reg0150)
+#         customer_pool = obligation.pool.get('res.partner')
+#         customer_ids = customer_pool.search(
+#             cr, uid, [
+#                 ('customer', '=', True)], context=context)
+#         customers = customer_pool.browse(cr, uid, customer_ids, context)
+#         for customer in customers:
+#             reg0150 = pysped_efd.r0150(COD_PART=customer.id, NOME=customer.name, COD_PAIS=customer.country_id.bc_code,
+#                                        CNPJ=customer.cnpj_cpf, CPF=customer.cnpj_cpf, IE=customer.inscr_est,
+#                                        COD_MUN=customer.l10n_br_city_id.ibge_code, SUFRAMA=customer.suframa,
+#                                        END=customer.street, NUM=customer.number, COMPL=customer.street2, BAIRRO=customer.district)
+#
+#             efd.add(reg0150)
 
         #--------------- REG 0175 ---------------
         # TODO Usar o audittrail.log para buscar as modificações.
 
         #--------------- REG 0190 ---------------
-        uom_pool = obligation.pool.get('product.uom')
-        ids = uom_pool.search(cr, uid, [], context=context)
-        units = uom_pool.browse(cr, uid, ids, context=context)
-        for unit in units:
-            reg0190 = pysped_efd.r0190(UNID=unit.id, DESCR=unit.name)
-            efd.add(reg0190)
+#         uom_pool = obligation.pool.get('product.uom')
+#         ids = uom_pool.search(cr, uid, [], context=context)
+#         units = uom_pool.browse(cr, uid, ids, context=context)
+#         for unit in units:
+#             reg0190 = pysped_efd.r0190(UNID=unit.id, DESCR=unit.name)
+#             efd.add(reg0190)
 
         #--------------- REG 0200 ---------------
-        product_pool = obligation.pool.get('product.product')
-        ids = product_pool.search(cr, uid, [], context=context)
-        products = product_pool.browse(cr, uid, ids, context=context)
+#         product_pool = obligation.pool.get('product.product')
+#         ids = product_pool.search(cr, uid, [], context=context)
+#         products = product_pool.browse(cr, uid, ids, context=context)
         # TODO TIPO_ITEM, ou criar um enumerador no cadastro, ou inferir o tipo dependendo de onde for usado
         # TODO NCM seria a classificação fiscal, porém não entendi como é o relacionamento
         # TODO Quando for serviço ainda falta o Tipo de serviço no cadastro
         # TODO Como pegar a aliquota default de icms para o item?
-        for product in products:
-            reg0200 = pysped_efd.r0200(COD_ITEM=product.default_code, DESCR_ITEM=product.name_template,
-                                       COD_BARRA=product.ean13, COD_ANT_ITEM='', UNID_INV=product.product_tmpl_id.uom_id.id,
-                                       TIPO_ITEM='0', COD_NCM='', EX_IPI='', COD_GEN='?',
-                                       COD_LST='', ALIQ_ICMS='?')
-            efd.add(reg0200)
+#         for product in products:
+#             reg0200 = pysped_efd.r0200(COD_ITEM=product.default_code, DESCR_ITEM=product.name_template,
+#                                        COD_BARRA=product.ean13, COD_ANT_ITEM='', UNID_INV=product.product_tmpl_id.uom_id.id,
+#                                        TIPO_ITEM='0', COD_NCM='', EX_IPI='', COD_GEN='?',
+#                                        COD_LST='', ALIQ_ICMS='?')
+#             efd.add(reg0200)
 
         #--------------- REG 0205 ---------------
         # TODO Usar o audittrail.log para buscar as modificações.
@@ -258,14 +236,14 @@ class generate_sped_fiscal():
         # Registro de conversão de unidade de medida. Acho que não se aplica
 
         #--------------- REG 0300 ---------------
-        asset_pool = obligation.pool.get('account.asset.asset')
-        asset_ids = asset_pool.search(cr, uid, [], context=context)
-        assets = asset_pool.browse(cr, uid, asset_ids, context=context)
-        for asset in assets:
-            reg0300 = pysped_efd.r0300(COD_IND_BEM=asset.code, IDENT_MERC=asset.tipo_mercadoria,
-                                       DESCR_ITEM=asset.name, COD_PRNC=asset.parent_id.id,
-                                       COD_CTA=asset.category_id.id, NR_PARC=asset.method_number)
-            efd.add(reg0300)
+#         asset_pool = obligation.pool.get('account.asset.asset')
+#         asset_ids = asset_pool.search(cr, uid, [], context=context)
+#         assets = asset_pool.browse(cr, uid, asset_ids, context=context)
+#         for asset in assets:
+#             reg0300 = pysped_efd.r0300(COD_IND_BEM=asset.code, IDENT_MERC=asset.tipo_mercadoria,
+#                                        DESCR_ITEM=asset.name, COD_PRNC=asset.parent_id.id,
+#                                        COD_CTA=asset.category_id.id, NR_PARC=asset.method_number)
+#             efd.add(reg0300)
 
         #--------------- REG 0305 ---------------
         # TODO modificar o asset para quando for tipo 1, acrescentar os campos
@@ -282,38 +260,39 @@ class generate_sped_fiscal():
         # mesmo caso do registro anterior.
 
         #--------------- REG 0500 ---------------
-        account_pool = obligation.pool.get('account.account')
-        account_ids = account_pool.search(
-            cr, uid, [
-                ('company_id', '=', company.id)], context=context)
-        accounts = account_pool.browse(cr, uid, account_ids, context=context)
-        # TODO Falta a natureza e o tipo da conta.
-        for account in accounts:
-            reg0500 = pysped_efd.r0500(DT_ALT='', COD_NAT_CC='',
-                                       IND_CTA='', NIVEL=account.level, COD_CTA=account.code,
-                                       NOME_CTA=account.name)
-            efd.add(reg0500)
-
-        #--------------- REG 0600 ---------------
-        account_analytic_pool = obligation.pool.get('account.analytic.account')
-        analytic_ids = account_analytic_pool.search(
-            cr, uid, [
-                ('company_id', '=', company.id)], context=context)
-        analytic_accounts = account_analytic_pool.browse(
-            cr,
-            uid,
-            analytic_ids,
-            context=context)
-        for analytic in analytic_accounts:
-            reg0600 = pysped_efd.r0600(
-                DT_ALT='',
-                COD_CCUS=analytic.code,
-                CCUS=analytic.name)
-            efd.add(reg0600)
+#         account_pool = obligation.pool.get('account.account')
+#         account_ids = account_pool.search(
+#             cr, uid, [
+#                 ('company_id', '=', company.id)], context=context)
+#         accounts = account_pool.browse(cr, uid, account_ids, context=context)
+#         # TODO Falta a natureza e o tipo da conta.
+#         for account in accounts:
+#             reg0500 = pysped_efd.r0500(DT_ALT='', COD_NAT_CC='',
+#                                        IND_CTA='', NIVEL=account.level, COD_CTA=account.code,
+#                                        NOME_CTA=account.name)
+#             efd.add(reg0500)
+#
+#         #--------------- REG 0600 ---------------
+#         account_analytic_pool = obligation.pool.get('account.analytic.account')
+#         analytic_ids = account_analytic_pool.search(
+#             cr, uid, [
+#                 ('company_id', '=', company.id)], context=context)
+#         analytic_accounts = account_analytic_pool.browse(
+#             cr,
+#             uid,
+#             analytic_ids,
+#             context=context)
+#         for analytic in analytic_accounts:
+#             reg0600 = pysped_efd.r0600(
+#                 DT_ALT='',
+#                 COD_CCUS=analytic.code,
+#                 CCUS=analytic.name)
+#             efd.add(reg0600)
 
         #--------------- REG 0990 ---------------
 
     def bloco_C(self, cr, uid, ids, context, obligation, efd=None):
+        pass
         # Abertura do Bloco C C001 1 1
         # Documento - Nota Fisca l (código 01) , Nota Fisca l Avulsa (código 1B) , Nota Fisca l de Produtor (código 04) e Nota Fisca l Eletrônica (código 55) C100 2 V
         # Operações com ICMS ST recolhido para UF diversa do destinatário do documento fisca l(Código 55) C105 3 1:1
@@ -360,30 +339,30 @@ class generate_sped_fiscal():
         # Registro Analítico do movimento diário (código 02 e 2D) C490 4 1:N
         # Resumo Mensa l de Itens do ECF por Estabelecimento (código 02 e 2D e 2E) C495 2 V
         # Nota Fiscal/Conta de Energia Elétrica (código 06) , Nota Fiscal/Conta de fornecimento
-                # dágua canalizada (código 29) e Nota Fiscal/Consumo Fornecimento de Gás (Código 28) C500 2 V
+        # dágua canalizada (código 29) e Nota Fiscal/Consumo Fornecimento de Gás (Código 28) C500 2 V
         # Itens do Documento - Nota Fiscal/Conta de Energia Elétrica (código 06) , Nota
-                # Fiscal/Conta de fornecimento dágua canalizada (código 29) e Nota Fiscal/Conta
-                # Fornecimento de Gás (Código 28) C510 3 1:N
+        # Fiscal/Conta de fornecimento dágua canalizada (código 29) e Nota Fiscal/Conta
+        # Fornecimento de Gás (Código 28) C510 3 1:N
         # Registro Analítico do Documento - Nota Fiscal/Conta de Energia Elétrica (código 06) ,
-                # Nota Fiscal/Conta de fornecimento dágua canalizada (código 29) e Nota Fiscal/Conta
-                # Fornecimento de Gás (Código 28) C590 3 1:N
+        # Nota Fiscal/Conta de fornecimento dágua canalizada (código 29) e Nota Fiscal/Conta
+        # Fornecimento de Gás (Código 28) C590 3 1:N
         # Consolidação Diária de Notas Fiscais/Contas de Energia Elétrica (Código 06) , Nota
-                # Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de Fornecimento
-                # de Gás (Código 28) - (Empresas não obrigadas ao Convênio ICMS 115/03) C600 2 V
+        # Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de Fornecimento
+        # de Gás (Código 28) - (Empresas não obrigadas ao Convênio ICMS 115/03) C600 2 V
         # Documentos cancelados - Consolidação diária de notas fiscais/conta de energia elétrica
-                #(Código 06) , nota fiscal/conta de fornecimento de água (código 29) e nota fiscal/conta
-                # de fornecimento de gás (código 28) C601 3 1:N
+        #(Código 06) , nota fiscal/conta de fornecimento de água (código 29) e nota fiscal/conta
+        # de fornecimento de gás (código 28) C601 3 1:N
         # Itens do Documento Consolidado - Notas Fiscais/Contas de Energia Elétrica (Código
-                # 06) , Nota Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de
-                # Fornecimento de Gás (Código 28) - (Empresas não obrigadas ao Convênio ICMS 115/03) C610 3 1:N
+        # 06) , Nota Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de
+        # Fornecimento de Gás (Código 28) - (Empresas não obrigadas ao Convênio ICMS 115/03) C610 3 1:N
         # Registro Analítico dos Documentos - Notas Fiscais/Contas de Energia Elétrica (Código
-                # 06) , Nota Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de
-                # Fornecimento de Gás (Código 28) C690 3 1:N
+        # 06) , Nota Fiscal/Conta de Fornecimento d´água (código 29) e Nota Fiscal/Conta de
+        # Fornecimento de Gás (Código 28) C690 3 1:N
         # Consolidação dos Documentos Nota Fiscal/Conta Energia Elétrica (código 06) emitidas
-                # em via única - (Empresas obrigadas à entrega do arquivo previsto no Convênio ICMS
-                # 115/03) e Nota Fiscal/Conta de Fornecimento de Gás Canalizado (Código 28) C700 2 V
+        # em via única - (Empresas obrigadas à entrega do arquivo previsto no Convênio ICMS
+        # 115/03) e Nota Fiscal/Conta de Fornecimento de Gás Canalizado (Código 28) C700 2 V
         # Registro Analítico dos Documentos - Nota Fiscal/Conta Energia Elétrica (código 06)
-                # emitidas em via única C790 3 1:N
+        # emitidas em via única C790 3 1:N
         # Registro de Informações de ICMS ST por UF C791 4 1:N
         # Registro Cupom Fisca l Eletrônico - CF-e (Código 59) C800 2 V
         # Registro Analítico do CF-e (Código 59) C850 3 1:N
@@ -476,9 +455,9 @@ class generate_sped_fiscal():
         # Apuração do IP I E520 3 1:1
         # Ajustes da Apuração do IP I E530 4 1:N
         # Encerramento do Bloco E E990 1 1
-
-        regE100 = pysped_efd.rE100(DT_INI='01-03-2012', DT_FIN='31-03-2012')
-        efd.add(regE100)
+        pass
+        #regE100 = pysped_efd.rE100(DT_INI='01-03-2012', DT_FIN='31-03-2012')
+        #efd.add(regE100)
 
     def bloco_G(self, cr, uid, ids, context, obligation, efd=None):
         # Abertura do Bloco G G001 1 1
