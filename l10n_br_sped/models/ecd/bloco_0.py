@@ -19,7 +19,8 @@
 #                                                                             #
 ###############################################################################
 
-from sped.ecd.registros import Registro0007
+import re
+from sped.ecd.registros import Registro0007, Registro0020
 from ..sped_base import SpedBase
 from datetime import date
 
@@ -33,30 +34,61 @@ class Bloco0(SpedBase):
         end_date = date(2015, 12, 31)
 
         company_pool = obligation.pool.get('res.company')
-        company_ids = company_pool.search(cr, uid, [],
-                                          offset=0, limit=1, context=context)
-        company = company_pool.browse(cr, uid, company_ids[0], context)
+        company_id = 1  # TODO
+        company = company_pool.browse(cr, uid, company_id, context)
         #
-        # Abertura do Arquivo
+        # REGISTRO 0000: ABERTURA DO ARQUIVO DIGITAL E IDENTIFICAÇÃO
         #
         registro_abertura = arquivo_digital._registro_abertura
         registro_abertura.DT_INI = start_date
         registro_abertura.DT_FIN = end_date
         registro_abertura.NOME = company.partner_id.legal_name
-        registro_abertura.CNPJ = company.partner_id.cnpj_cpf
+        registro_abertura.CNPJ = re.sub('[^0-9]', '',
+                                        company.partner_id.cnpj_cpf or '')
         registro_abertura.UF = company.partner_id.l10n_br_city_id.state_id.code
-        registro_abertura.IE = company.partner_id.inscr_est
-        registro_abertura.COD_MUN = int(company.partner_id.l10n_br_city_id.ibge_code)
-        registro_abertura.IM = company.partner_id.inscr_mun
+        registro_abertura.IE = re.sub('[^0-9a-zA-Z]', '',
+                                      company.partner_id.inscr_est or '')
+        registro_abertura.COD_MUN = \
+            int((company.partner_id.state_id.ibge_code or '0') + 
+                (company.partner_id.l10n_br_city_id.ibge_code or '0'))
+        registro_abertura.IM = re.sub('[^0-9a-zA-Z]', '',
+                                      company.partner_id.inscr_mun or '')
 
-        registro_abertura.IND_SIT_INI_PER = '3'
-        registro_abertura.IND_NIRE = '1'
-        registro_abertura.IND_FIN_ESC = '0'
-        registro_abertura.IND_GRANDE_PORTE = '0'
-        registro_abertura.TIP_ECD = '0'
+        #registro_abertura.IND_SIT_INI_PER = '3'
+        #registro_abertura.IND_NIRE = '1'
+        #registro_abertura.IND_FIN_ESC = '0'
+        #registro_abertura.IND_GRANDE_PORTE = '0'
+        #registro_abertura.TIP_ECD = '0'
 
         bloco_0 = arquivo_digital._blocos['0']
 
+        #
+        # REGISTRO 0007: OUTRAS INSCRIÇÕES CADASTRAIS DA PESSOA JURÍDICA
+        #
         registro_0007 = Registro0007()
-        registro_0007.COD_ENT_REF = '00'
+        registro_0007.COD_ENT_REF = '00'  # Sem registro
         bloco_0.add(registro_0007)
+
+        #
+        # REGISTRO 0020: ESCRITURAÇÃO CONTÁBIL DESCENTRALIZADA
+        #
+        childs = company_pool.search(cr, uid, [('parent_id', '=', company.id)])
+
+        for child in company_pool.browse(cr, uid, childs, context):
+            if child.expects_chart_of_accounts:
+                registro_0020 = Registro0020()
+                registro_0020.IND_DEC = '1'
+                registro_0020.CNPJ = re.sub('[^0-9]', '',
+                                            child.partner_id.cnpj_cpf or '')
+                registro_0020.UF = \
+                    child.partner_id.l10n_br_city_id.state_id.code
+                registro_0020.IE = re.sub('[^0-9a-zA-Z]', '',
+                                          child.partner_id.inscr_est or '')
+                registro_0020.COD_MUN = \
+                    (child.partner_id.state_id.ibge_code or '') +\
+                    (child.partner_id.l10n_br_city_id.ibge_code or '')                    
+                registro_0020.IM = re.sub('[^0-9a-zA-Z]', '',
+                                          child.partner_id.inscr_mun or '')
+                #registro_0020.NIRE = ''
+
+                bloco_0.add(registro_0020)
